@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { listContacts, getContactById, addContact, removeContact, updateContact } = require('../../model/index')
 
-router.get('/', express.json(), async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const contacts = await listContacts()
     console.log(contacts)
