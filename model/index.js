@@ -9,26 +9,26 @@ const listContacts = async () => {
 }
 
 const getContactById = async (contactId) => {
-  const contactsList = await fs.readFile(contactsPath, 'utf8')
-  const contactById = JSON.parse(contactsList).find((item) =>
+  const contactsList = JSON.parse(await fs.readFile(contactsPath, 'utf8'))
+  const contactById = contactsList.find((item) =>
     // eslint-disable-next-line
-    item.id == contactId
+    String(item.id) === String(contactId)
   )
   return await contactById
 }
 
 const removeContact = async (contactId) => {
-  const contactsList = await fs.readFile(contactsPath, 'utf8')
-  const delContact = JSON.parse(contactsList).find((item) =>
+  const contactsList = JSON.parse(await fs.readFile(contactsPath, 'utf8'))
+  const delContact = contactsList.find((item) =>
     // eslint-disable-next-line
-    item.id == contactId)
-  const newContactsList = await contactsList.filter((item) => item.id !== contactId)
+    String(item.id) === String(contactId))
+  const newContactsList = contactsList.filter((item) => String(item.id) !== String(contactId))
   await fs.writeFile(contactsPath, JSON.stringify(newContactsList))
-  return await delContact
+  return delContact
 }
 
 const addContact = async (body) => {
-  const contactsList = await fs.readFile(contactsPath, 'utf8')
+  const contactsList = JSON.parse(await fs.readFile(contactsPath, 'utf8'))
   const newContact = { id: v4(), ...body }
   const newContactsList = [...contactsList, newContact]
   await fs.writeFile(contactsPath, JSON.stringify(newContactsList))
@@ -36,17 +36,13 @@ const addContact = async (body) => {
 }
 
 const updateContact = async (contactId, body) => {
-  const contactsList = await fs.readFile(contactsPath, 'utf8')
+  const contactsList = JSON.parse(await fs.readFile(contactsPath, 'utf8'))
   const contact = contactsList.find((item) =>
     // eslint-disable-next-line
-    item.id == contactId
-  )
+    String(item.id) === String(contactId))
   const updatingContact = { ...contact, ...body }
-
-  const updatingContactList = contactsList.map((item) => item.id === contactId ? updatingContact : item)
-
+  const updatingContactList = contactsList.map((item) => String(item.id) === String(contactId) ? updatingContact : item)
   await fs.writeFile(contactsPath, JSON.stringify(updatingContactList))
-
   return updatingContact
 }
 
