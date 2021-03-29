@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
-
-const { Schema, model } = mongoose
+const { Schema, model, SchemaTypes } = mongoose
+const { Subscription } = require('../../helpers/constants')
 
 /* eslint-disable */
 const contactSchema = new Schema({
@@ -26,7 +26,7 @@ const contactSchema = new Schema({
     subscription: {
         type: String,
         required: [true, "subscription обязателен к заполнению!"],
-        enum: ['free', 'pro', 'premium'],
+        enum: { values: [Subscription.FREE, Subscription.PRO, Subscription.PREMIUM], message: 'Неверный тип подписки' },
         default: 'free',
     },
     password: {
@@ -37,7 +37,11 @@ const contactSchema = new Schema({
     },
     token: {
         type: String,
-        default: 'fre',
+        default: '',
+    },
+    owner: {
+        type: SchemaTypes.ObjectId,
+        ref: 'user',
     }
 },
     { versionKey: false, timestamps: true })

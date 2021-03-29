@@ -1,4 +1,4 @@
-const { contactList, getContactById, removeContact, addContact, updateContact } = require('../model/index.js')
+const { contactList, getContactById, removeContact, addContact, updateContact } = require('../model/contacts.js')
 
 /* eslint-disable */
 const get = async (req, res, next) => {
