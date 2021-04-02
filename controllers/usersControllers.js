@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken')
 const dotenv = require('dotenv')
 dotenv.config()
-const { findUserByEmail, createNewUser, updateToken } = require('../model/users')
+const { findUserByEmail, findUserById, createNewUser, updateToken, patchSub } = require('../model/users')
+const { Subscription } = require('../helpers/constants')
 
 const { SECRET_KEY } = process.env
 
@@ -49,8 +50,8 @@ const login = async (req, res, next) => {
             });
         }
         const payload = { id: user._id };
-
         const token = jwt.sign(payload, SECRET_KEY, { expiresIn: '1h' });
+        await updateToken(payload.id, token)
 
         res.json({
             status: 'success',
@@ -67,6 +68,7 @@ const login = async (req, res, next) => {
         next(err);
     }
 };
+
 const logout = async (req, res, next) => {
     try {
         const id = req.user.id;
@@ -78,6 +80,57 @@ const logout = async (req, res, next) => {
         next(err);
     }
 };
+
+const current = async (req, res, next) => {
+    try {
+        const { id, email, subscription } = req.user;
+        const user = await findUserById(id);
+        if (!user) {
+            return res.status(401).json({
+                status: 'error',
+                code: 401,
+                message: 'Not authorized',
+            });
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            code: 200,
+            data: {
+                email,
+                subscription,
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const patch = async (req, res, next) => {
+    try {
+        const { subscription } = req.body;
+        const subOptions = Object.values(Subscription);
+        if (!subOptions.includes(subscription)) {
+            return res.status(400).json({
+                status: 'error',
+                code: 400,
+                message: `invalid subscription, must be one of the following: ${subOptions}`,
+            });
+        }
+        const user = await patchSub(req.user.id, subscription);
+        return res.status(200).json({
+            status: 'success',
+            code: 200,
+            message: `subscription changed to ${subscription}`,
+            data: {
+                email: user.email,
+                subscription: user.subscription,
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
 /* eslint-enable */
 
-module.exports = { register, login, logout }
+module.exports = { register, login, logout, current, patch }
