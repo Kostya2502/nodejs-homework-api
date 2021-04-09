@@ -1,10 +1,16 @@
+const fs = require('fs').promises
+const path = require('path')
+const gravatar = require('gravatar')
+const Jimp = require('jimp')
 const jwt = require('jsonwebtoken')
 const dotenv = require('dotenv')
 dotenv.config()
 const { findUserByEmail, findUserById, createNewUser, updateToken, patchSub } = require('../model/users')
 const { Subscription } = require('../helpers/constants')
+const folderExists = require('../helpers/folderExists')
 
-const { SECRET_KEY } = process.env
+const { SECRET_KEY, UPLOADDIR } = process.env
+const uploadDirectory = path.join(process.cwd(), UPLOADDIR)
 
 /* eslint-disable */
 const register = async (req, res, next) => {
@@ -19,7 +25,8 @@ const register = async (req, res, next) => {
                 data: 'Email conflict',
             });
         }
-        const newUser = await createNewUser(req.body);
+        const avatarURL = gravatar.url(email, { protocol: 'https', s: '250' });
+        const newUser = await createNewUser({ ...req.body, avatarURL });
 
         res.status(201).json({
             status: 'success',
@@ -131,6 +138,31 @@ const patch = async (req, res, next) => {
         next(err);
     }
 };
+
+const avatar = async (req, res, next) => {
+    const { path: tempName, originalname } = req.file;
+    const { id } = req.user;
+    await folderExists(uploadDirectory);
+    const img = await Jimp.read(tempName);
+    await img
+        .autocrop()
+        .cover(250, 250, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
+        .writeAsync(tempName);
+    const newName = path.join(uploadDirectory, `avatar${id}${path.extname(originalname)}`);
+    try {
+        await fs.rename(tempName, newName);
+        const user = await patchAvatar(id, newName);
+        res.status(200).json({
+            status: 'success',
+            code: 200,
+            message: 'avatar link updated',
+            data: { avatarURL: user.avatarURL },
+        });
+    } catch (error) {
+        await fs.unlink(tempName);
+        return next(error);
+    }
+};
 /* eslint-enable */
 
-module.exports = { register, login, logout, current, patch }
+module.exports = { register, login, logout, current, patch, avatar }
