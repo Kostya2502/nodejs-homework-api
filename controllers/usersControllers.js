@@ -5,6 +5,7 @@ const Jimp = require('jimp')
 const jwt = require('jsonwebtoken')
 const dotenv = require('dotenv')
 dotenv.config()
+const { v4: uuidv4 } = require('uuid')
 const { findUserByEmail, findUserById, createNewUser, updateToken, patchSub } = require('../model/users')
 const { Subscription } = require('../helpers/constants')
 const folderExists = require('../helpers/folderExists')
@@ -26,7 +27,9 @@ const register = async (req, res, next) => {
             });
         }
         const avatarURL = gravatar.url(email, { protocol: 'https', s: '250' });
-        const newUser = await createNewUser({ ...req.body, avatarURL });
+        const verifyToken = uuidv4();
+        const newUser = await createNewUser({ ...req.body, avatarURL, verifyToken });
+        await sendMail(verifyToken, email);
 
         res.status(201).json({
             status: 'success',
@@ -48,7 +51,7 @@ const login = async (req, res, next) => {
         const { email, password } = req.body;
         const user = await findUserByEmail(email);
 
-        if (!user || !(await user.validPassword(password))) {
+        if (!user || !(await user.validPassword(password)) || !user.verify) {
             return res.status(400).json({
                 status: 'error',
                 code: 400,
@@ -163,6 +166,59 @@ const avatar = async (req, res, next) => {
         return next(error);
     }
 };
+
+const verify = async (req, res, next) => {
+    try {
+        const user = await findByVerifyToken(req.params.verificationToken);
+        if (user) {
+            await updateVerifyToken(user.id, true, null);
+            return res.status(200).json({
+                status: 'success',
+                code: 200,
+                message: 'Verification successful!',
+            });
+        }
+        return res.status(404).json({
+            status: 'error',
+            code: 404,
+            data: 'User not found',
+            message: 'Link is not valid',
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const resend = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({
+                status: 'error',
+                code: 400,
+                message: 'missing required field email',
+            });
+        }
+        const user = await findUserByEmail(email);
+        if (user.verify) {
+            return res.status(400).json({
+                status: 'error',
+                code: 400,
+                message: 'Verification has already been passed',
+            });
+        }
+        const verifyToken = user.verifyToken;
+        await sendMail(verifyToken, email);
+
+        res.status(200).json({
+            status: 'success',
+            code: 200,
+            message: 'Verification email sent',
+        });
+    } catch (err) {
+        next(err);
+    }
+};
 /* eslint-enable */
 
-module.exports = { register, login, logout, current, patch, avatar }
+module.exports = { register, login, logout, current, patch, avatar, verify, resend }
